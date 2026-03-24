@@ -1,7 +1,7 @@
 using ArisenKernel.Contracts;
 using ArisenEngine.Core.ECS;
+using ArisenEngine.Core.Memory;
 using ArisenEngine.Core.Automation;
-using ArisenEngine.Rendering;
 using System.Numerics;
 using System;
 using System.Runtime.CompilerServices;

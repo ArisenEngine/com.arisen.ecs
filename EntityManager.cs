@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using ArisenKernel.Contracts;
 using ArisenEngine.Core.ECS;
 using ArisenEngine.Core.Automation;
-using ArisenEngine.Rendering;
 
 namespace ArisenEngine.Core.ECS;
 
