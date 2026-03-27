@@ -1,20 +1,15 @@
 {
-    "engineVersion": "0.1.0",
-    "id": "com.arisen.ecs",
-    "tags": [
-        "ecs",
-        "core"
-    ],
-    "version": "1.0.0",
-    "description": "Core ECS framework for Arisen Engine",
-    "author": "Arisen Team",
-    "name": "Arisen Entity Component System",
-    "dependencies": {
-        "com.arisen.core.native": "1.0.0",
-        "com.arisen.core": "1.0.0"
-    },
-    "entry": {
-        "class": "ArisenEngine.Core.ECS.EcsPackage",
-        "assembly": "Com.Arisen.Ecs.dll"
-    }
+  "id": "com.arisen.ecs",
+  "name": "Arisen Entity Component System",
+  "version": "1.0.0",
+  "author": "Arisen Team",
+  "description": "Core ECS framework for Arisen Engine",
+  "entry": {
+    "assembly": "Com.Arisen.Ecs.dll",
+    "class": "ArisenEngine.Core.ECS.EcsPackage"
+  },
+  "dependencies": {
+    "com.arisen.core.native": "1.0.0",
+    "com.arisen.core": "1.0.0"
+  }
 }
