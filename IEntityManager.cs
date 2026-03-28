@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace ArisenEngine.Core.ECS;
 
 /// <summary>
@@ -11,6 +14,11 @@ public interface IEntityManager
     /// Creates a new Entity, optionally reusing a freed ID.
     /// </summary>
     Entity CreateEntity();
+
+    /// <summary>
+    /// Returns all currently active entities in the world.
+    /// </summary>
+    IEnumerable<Entity> GetAllEntities();
 
     /// <summary>
     /// Destroys the entity and removes all associated components across all pools.
@@ -31,6 +39,12 @@ public interface IEntityManager
     /// Removes the component from the entity.
     /// </summary>
     void RemoveComponent<T>(Entity entity) where T : struct, IComponent;
+
+    /// <summary>
+    /// Returns all component pools that contain the given entity.
+    /// Useful for Inspector-style discovery.
+    /// </summary>
+    IEnumerable<IComponentPool> GetEntityComponentPools(Entity entity);
 
     // Note: ref returning methods (GetComponent<T>) are currently omitted from the interface 
     // to strictly preserve the interface abstraction, as C# interface generic ref returns 

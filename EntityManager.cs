@@ -14,6 +14,7 @@ public class EntityManager : IEntityManager
 {
     private int m_NextEntityId = 0;
     private readonly List<int> m_FreeIds = new();
+    private readonly HashSet<int> m_ActiveEntities = new();
     private readonly Dictionary<Type, IComponentPool> m_ComponentPools = new();
 
     /// <summary>
@@ -21,14 +22,19 @@ public class EntityManager : IEntityManager
     /// </summary>
     public Entity CreateEntity()
     {
+        int id;
         if (m_FreeIds.Count > 0)
         {
-            int id = m_FreeIds[^1];
+            id = m_FreeIds[^1];
             m_FreeIds.RemoveAt(m_FreeIds.Count - 1);
-            return new Entity(id);
+        }
+        else
+        {
+            id = m_NextEntityId++;
         }
 
-        return new Entity(m_NextEntityId++);
+        m_ActiveEntities.Add(id);
+        return new Entity(id);
     }
 
     /// <summary>
@@ -45,7 +51,19 @@ public class EntityManager : IEntityManager
             m_FreeIds.Remove(id);
         }
 
+        m_ActiveEntities.Add(id);
         return new Entity(id);
+    }
+
+    /// <summary>
+    /// Returns all currently active entities in the world.
+    /// </summary>
+    public IEnumerable<Entity> GetAllEntities()
+    {
+        foreach (int id in m_ActiveEntities)
+        {
+            yield return new Entity(id);
+        }
     }
 
     /// <summary>
@@ -58,6 +76,7 @@ public class EntityManager : IEntityManager
             pool.Remove(entity);
         }
         
+        m_ActiveEntities.Remove(entity.Id);
         m_FreeIds.Add(entity.Id);
     }
 
@@ -126,13 +145,13 @@ public class EntityManager : IEntityManager
     /// Returns all component pools that contain the given entity.
     /// Useful for Inspector-style discovery.
     /// </summary>
-    public IEnumerable<(Type Type, IComponentPool Pool)> GetEntityComponents(Entity entity)
+    public IEnumerable<IComponentPool> GetEntityComponentPools(Entity entity)
     {
         foreach (var kvp in m_ComponentPools)
         {
             if (kvp.Value.Has(entity))
             {
-                yield return (kvp.Key, kvp.Value);
+                yield return kvp.Value;
             }
         }
     }
