@@ -16,6 +16,11 @@ public interface IEntityManager
     Entity CreateEntity();
 
     /// <summary>
+    /// Creates a new Entity with a specific ID. Useful for reconstruction/undo.
+    /// </summary>
+    Entity CreateEntity(int id);
+
+    /// <summary>
     /// Returns all currently active entities in the world.
     /// </summary>
     IEnumerable<Entity> GetAllEntities();
