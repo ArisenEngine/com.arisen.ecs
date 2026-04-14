@@ -24,15 +24,16 @@ public class SystemContainer
 
     private class SystemTaskNode : TaskNode
     {
-        public ISystem System;
+        public ISystem System = null!;
         public EntityManager? EntityManager;
+        public EntityCommandBuffer? CommandBuffer; // Used for thread-safe structural changes
         public float DeltaTime;
 
         public override void Execute()
         {
-            if (EntityManager != null)
+            if (EntityManager != null && CommandBuffer != null)
             {
-                System.Execute(EntityManager, DeltaTime);
+                System.Execute(EntityManager, CommandBuffer, DeltaTime);
             }
         }
     }
@@ -47,7 +48,12 @@ public class SystemContainer
         {
             System = system,
             SystemType = system.GetType(),
-            TaskNode = new SystemTaskNode { System = system, Name = system.Name }
+            TaskNode = new SystemTaskNode 
+            { 
+                System = system, 
+                Name = system.Name,
+                CommandBuffer = new EntityCommandBuffer() // Each system gets its own ECB
+            }
         };
 
         // Extract attributes
@@ -82,6 +88,15 @@ public class SystemContainer
         }
 
         m_TaskGraph.Execute();
+
+        // 3. Playback Phase (Sequential)
+        // Now that the parallel simulation phase is complete, we apply all 
+        // structural changes (Create/Destroy/Add/Remove) to the EntityManager.
+        foreach (var meta in m_Systems)
+        {
+            var node = (SystemTaskNode)meta.TaskNode!;
+            node.CommandBuffer?.Playback(em);
+        }
     }
 
     private void RebuildGraph()
