@@ -12,6 +12,7 @@ public class SceneSubsystem : ITickableSubsystem
     public EnginePhase InitPhase => EnginePhase.Init;
 
     public EntityManager ActiveEntityManager { get; private set; }
+    private readonly SystemContainer m_Systems = new();
 
     public void Initialize()
     {
@@ -20,7 +21,12 @@ public class SceneSubsystem : ITickableSubsystem
 
     public void Tick(float deltaTime)
     {
-        // Execute ECS systems in order (will be populated dynamically later)
+        m_Systems.Execute(ActiveEntityManager, deltaTime);
+    }
+
+    public void RegisterSystem(ISystem system)
+    {
+        m_Systems.AddSystem(system);
     }
 
     public void Shutdown()
