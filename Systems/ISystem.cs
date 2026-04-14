@@ -8,7 +8,7 @@ namespace ArisenEngine.Core.ECS;
 public interface ISystem
 {
     string Name { get; }
-    void Execute(EntityManager em, float dt);
+    void Execute(EntityManager em, EntityCommandBuffer ecb, float dt);
 }
 
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
