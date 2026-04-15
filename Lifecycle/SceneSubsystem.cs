@@ -1,5 +1,7 @@
 using ArisenKernel.Lifecycle;
 using ArisenEngine.Core.ECS;
+using ArisenEngine.Core.RHI;
+using System;
 
 namespace ArisenEngine.ECS.Lifecycle;
 
@@ -12,6 +14,30 @@ public class SceneSubsystem : ITickableSubsystem
     public EnginePhase InitPhase => EnginePhase.Init;
 
     public EntityManager ActiveEntityManager { get; private set; }
+    
+    // Internal buffer for draw calls, reallocated only when needed.
+    private MeshDrawCommand[] m_DrawListBuffer = new MeshDrawCommand[64];
+    private int m_DrawCommandCount = 0;
+
+    /// <summary>
+    /// Gets the list of mesh draw commands processed during the current frame.
+    /// </summary>
+    public ReadOnlySpan<MeshDrawCommand> GetCurrentDrawList() => new(m_DrawListBuffer, 0, m_DrawCommandCount);
+
+    /// <summary>
+    /// Updates the internal draw list. Called by MeshSystem.
+    /// </summary>
+    public void UpdateDrawList(ReadOnlySpan<MeshDrawCommand> drawList)
+    {
+        if (drawList.Length > m_DrawListBuffer.Length)
+        {
+            m_DrawListBuffer = new MeshDrawCommand[drawList.Length * 2];
+        }
+
+        drawList.CopyTo(m_DrawListBuffer);
+        m_DrawCommandCount = drawList.Length;
+    }
+
     private readonly SystemContainer m_Systems = new();
 
     public void Initialize()
