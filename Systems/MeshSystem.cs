@@ -1,6 +1,5 @@
 using System;
 using System.Numerics;
-using Arisen.Native.RHI;
 using ArisenEngine.Core.ECS;
 using ArisenEngine.Core.Memory;
 using ArisenEngine.Core.RHI;
@@ -10,8 +9,8 @@ using ArisenKernel.Lifecycle;
 namespace ArisenEngine.Core.ECS;
 
 /// <summary>
-/// A system that gathers all visible mesh renderers and prepares a Draw List for the RenderSubsystem.
-/// No longer depends on the Rendering package.
+/// Gathers visible mesh renderer components into asset-facing render items.
+/// Render setup resolves the asset references into prepared RHI draw commands.
 /// </summary>
 public sealed class MeshSystem : ISystem
 {
@@ -21,17 +20,21 @@ public sealed class MeshSystem : ISystem
     {
         var meshPool = em.GetPool<MeshRendererComponent>();
         var transformPool = em.GetPool<TransformComponent>();
+        var scene = EngineKernel.Instance.GetSubsystem<SceneSubsystem>();
         
         int count = meshPool.Count;
-        if (count == 0) return;
+        if (count == 0)
+        {
+            scene?.UpdateStaticMeshItems(ReadOnlySpan<StaticMeshRenderItem>.Empty);
+            return;
+        }
 
-        // 1. Allocate space in the FrameArena for this frame's draw commands
-        var drawList = FrameArena.Instance.Alloc<MeshDrawCommand>(count);
+        var renderItems = FrameArena.Instance.Alloc<StaticMeshRenderItem>(count);
         
         var meshComponents = meshPool.GetRawComponentArray();
         var meshEntities = meshPool.GetRawEntityArray();
 
-        int drawCount = 0;
+        int itemCount = 0;
         for (int i = 0; i < count; i++)
         {
             Entity entity = meshEntities[i];
@@ -41,29 +44,27 @@ public sealed class MeshSystem : ISystem
                 if (!meshComp.IsValid) continue;
 
                 ref var transComp = ref transformPool.GetRef(entity);
-                ref var cmd = ref drawList[drawCount];
+                ref var item = ref renderItems[itemCount];
 
-                // 2. Prepare the LocalToWorld matrix
                 // Arisen follows a Row-Major convention for CPU math (System.Numerics default)
-                cmd.LocalToWorld = Matrix4x4.CreateScale(transComp.Scale) * 
-                                   Matrix4x4.CreateFromQuaternion(transComp.Rotation) * 
-                                   Matrix4x4.CreateTranslation(transComp.Position);
+                item.LocalToWorld = Matrix4x4.CreateScale(transComp.Scale) *
+                                    Matrix4x4.CreateFromQuaternion(transComp.Rotation) *
+                                    Matrix4x4.CreateTranslation(transComp.Position);
+                item.MeshGuid = meshComp.MeshGuid;
+                item.MaterialGuid = meshComp.MaterialGuid;
+                item.FirstSubmeshIndex = meshComp.FirstSubmeshIndex;
+                item.SubmeshCount = meshComp.SubmeshCount;
+                item.BoundsCenter = meshComp.BoundsCenter;
+                item.BoundsExtents = meshComp.BoundsExtents;
+                item.Visible = meshComp.Visible;
 
-                // 3. Extract RHI handles directly from the component (DOD path)
-                cmd.VertexBuffer = meshComp.VertexBuffer;
-                cmd.IndexBuffer = meshComp.IndexBuffer;
-                cmd.IndexCount = meshComp.IndexCount;
-                cmd.IndexType = meshComp.IndexType;
-
-                drawCount++;
+                itemCount++;
             }
         }
 
-        // 4. Update the SceneSubsystem with the final list of commands to be rendered
-        var scene = EngineKernel.Instance.GetSubsystem<SceneSubsystem>();
         if (scene != null)
         {
-            scene.UpdateDrawList(drawList.Slice(0, drawCount));
+            scene.UpdateStaticMeshItems(renderItems.Slice(0, itemCount));
         }
     }
 }

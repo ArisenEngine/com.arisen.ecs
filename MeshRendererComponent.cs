@@ -1,23 +1,38 @@
-using Arisen.Native.RHI;
-using ArisenEngine.Core.RHI;
+using System;
+using System.Numerics;
 using System.Runtime.InteropServices;
 
 namespace ArisenEngine.Core.ECS;
 
 /// <summary>
-/// A zero-allocation, purely blittable component to describe mesh rendering data.
-/// Removed dependency on ArisenEngine.Rendering to resolve circularity.
+/// Asset-facing mesh renderer data authored by simulation/game code.
+/// Render setup resolves these stable asset references into prepared RHI draw commands.
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct MeshRendererComponent : IComponent
 {
-    public RHIBufferHandle VertexBuffer;
-    public RHIBufferHandle IndexBuffer;
-    public uint IndexCount;
-    public EIndexType IndexType;
-    
-    // Placeholder for material logic
-    public uint MaterialID;
+    public Guid MeshGuid;
+    public Guid MaterialGuid;
+    public int FirstSubmeshIndex;
+    public int SubmeshCount;
+    public Vector3 BoundsCenter;
+    public Vector3 BoundsExtents;
+    public byte Visible;
 
-    public bool IsValid => VertexBuffer.IsValid;
+    public bool IsVisible => Visible != 0;
+    public bool IsValid => MeshGuid != Guid.Empty && IsVisible;
+
+    public static MeshRendererComponent Create(Guid meshGuid, Guid materialGuid = default)
+    {
+        return new MeshRendererComponent
+        {
+            MeshGuid = meshGuid,
+            MaterialGuid = materialGuid,
+            FirstSubmeshIndex = 0,
+            SubmeshCount = -1,
+            BoundsCenter = Vector3.Zero,
+            BoundsExtents = Vector3.Zero,
+            Visible = 1
+        };
+    }
 }
