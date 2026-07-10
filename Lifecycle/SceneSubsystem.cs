@@ -18,11 +18,15 @@ public class SceneSubsystem : ITickableSubsystem
     // Internal buffer for draw calls, reallocated only when needed.
     private MeshDrawCommand[] m_DrawListBuffer = new MeshDrawCommand[64];
     private int m_DrawCommandCount = 0;
+    private StaticMeshRenderItem[] m_StaticMeshItems = new StaticMeshRenderItem[64];
+    private int m_StaticMeshItemCount = 0;
 
     /// <summary>
     /// Gets the list of mesh draw commands processed during the current frame.
     /// </summary>
     public ReadOnlySpan<MeshDrawCommand> GetCurrentDrawList() => new(m_DrawListBuffer, 0, m_DrawCommandCount);
+
+    public ReadOnlySpan<StaticMeshRenderItem> GetCurrentStaticMeshItems() => new(m_StaticMeshItems, 0, m_StaticMeshItemCount);
 
     /// <summary>
     /// Updates the internal draw list. Called by MeshSystem.
@@ -36,6 +40,17 @@ public class SceneSubsystem : ITickableSubsystem
 
         drawList.CopyTo(m_DrawListBuffer);
         m_DrawCommandCount = drawList.Length;
+    }
+
+    public void UpdateStaticMeshItems(ReadOnlySpan<StaticMeshRenderItem> items)
+    {
+        if (items.Length > m_StaticMeshItems.Length)
+        {
+            m_StaticMeshItems = new StaticMeshRenderItem[items.Length * 2];
+        }
+
+        items.CopyTo(m_StaticMeshItems);
+        m_StaticMeshItemCount = items.Length;
     }
 
     private readonly SystemContainer m_Systems = new();
