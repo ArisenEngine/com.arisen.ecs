@@ -9,6 +9,13 @@
     "assembly": "Com.Arisen.Ecs.dll",
     "class": "ArisenEngine.Core.ECS.EcsPackage"
   },
+  "subsystems": [
+    {
+      "class": "ArisenEngine.ECS.Lifecycle.SceneSubsystem",
+      "phase": "Init",
+      "priority": 50
+    }
+  ],
   "dependencies": {
     "com.arisen.core.native": "1.0.0",
     "com.arisen.core": "1.0.0",
