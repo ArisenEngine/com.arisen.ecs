@@ -4,17 +4,23 @@ using System.Runtime.InteropServices;
 namespace ArisenEngine.Core.ECS;
 
 /// <summary>
-/// Scene-authored environment colors used by the first procedural sky and ambient-lighting path.
+/// Scene-authored environment colors, intensities, and output exposure.
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct SceneEnvironmentComponent : IComponent
 {
+    public const float DefaultExposure = 1.0f;
+    public const float MinimumExposure = 0.0f;
+    public const float MaximumExposure = 64.0f;
+
+    public Guid EnvironmentTextureGuid;
     public Vector3 SkyColor;
     public Vector3 HorizonColor;
     public Vector3 GroundColor;
     public Vector3 AmbientColor;
     public float SkyIntensity;
     public float AmbientIntensity;
+    public float Exposure;
     public byte Enabled;
 
     public bool IsEnabled =>
@@ -29,6 +35,14 @@ public struct SceneEnvironmentComponent : IComponent
         AmbientColor = new Vector3(0.52f, 0.62f, 0.78f),
         SkyIntensity = 0.85f,
         AmbientIntensity = 0.32f,
+        Exposure = DefaultExposure,
         Enabled = 1
     };
+
+    public static float NormalizeExposure(float exposure)
+    {
+        return float.IsFinite(exposure)
+            ? System.Math.Clamp(exposure, MinimumExposure, MaximumExposure)
+            : DefaultExposure;
+    }
 }
