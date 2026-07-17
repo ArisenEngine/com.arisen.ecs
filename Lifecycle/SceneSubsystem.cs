@@ -13,7 +13,7 @@ public class SceneSubsystem : ITickableSubsystem
     public int Priority => 50; // Execute before Rendering (100)
     public EnginePhase InitPhase => EnginePhase.Init;
 
-    public EntityManager ActiveEntityManager { get; private set; }
+    public EntityManager ActiveEntityManager { get; private set; } = null!;
     
     // Internal buffer for draw calls, reallocated only when needed.
     private MeshDrawCommand[] m_DrawListBuffer = new MeshDrawCommand[64];
@@ -70,9 +70,21 @@ public class SceneSubsystem : ITickableSubsystem
         m_Systems.AddSystem(system);
     }
 
+    /// <summary>
+    /// Atomically replaces the active ECS world after a scene has been fully validated and loaded.
+    /// </summary>
+    public void ActivateEntityManager(EntityManager entityManager)
+    {
+        ActiveEntityManager = entityManager ?? throw new ArgumentNullException(nameof(entityManager));
+        m_DrawCommandCount = 0;
+        m_StaticMeshItemCount = 0;
+    }
+
     public void Shutdown()
     {
-        ActiveEntityManager = null;
+        ActiveEntityManager = null!;
+        m_DrawCommandCount = 0;
+        m_StaticMeshItemCount = 0;
     }
 
     public void Dispose() => Shutdown();
