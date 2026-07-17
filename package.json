@@ -16,6 +16,11 @@
       "priority": 50
     }
   ],
+  "services": {
+    "requires": [
+      "ArisenEngine.Threading.ITaskGraph"
+    ]
+  },
   "dependencies": {
     "com.arisen.core.native": "1.0.0",
     "com.arisen.core": "1.0.0",
