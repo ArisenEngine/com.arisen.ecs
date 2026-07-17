@@ -10,6 +10,7 @@ namespace ArisenEngine.Core.ECS;
 /// A container that manages ECS systems and executes them using a TaskGraph.
 /// </summary>
 public class SystemContainer
+    : IDisposable
 {
     private class SystemMetadata
     {
@@ -39,11 +40,21 @@ public class SystemContainer
     }
 
     private readonly List<SystemMetadata> m_Systems = new();
-    private TaskGraph? m_TaskGraph;
+    private readonly ITaskGraph m_TaskGraph;
+    private ITaskSchedule? m_Schedule;
     private bool m_IsDirty = true;
+    private bool m_Disposed;
+
+    public SystemContainer(ITaskGraph taskGraph)
+    {
+        m_TaskGraph = taskGraph ?? throw new ArgumentNullException(nameof(taskGraph));
+    }
 
     public void AddSystem(ISystem system)
     {
+        ObjectDisposedException.ThrowIf(m_Disposed, this);
+        ArgumentNullException.ThrowIfNull(system);
+
         var meta = new SystemMetadata
         {
             System = system,
@@ -72,12 +83,15 @@ public class SystemContainer
 
     public void Execute(EntityManager em, float dt)
     {
+        ObjectDisposedException.ThrowIf(m_Disposed, this);
+        ArgumentNullException.ThrowIfNull(em);
+
         if (m_IsDirty)
         {
             RebuildGraph();
         }
 
-        if (m_TaskGraph == null) return;
+        if (m_Schedule == null) return;
 
         // Update context for all systems before execution
         foreach (var meta in m_Systems)
@@ -87,30 +101,52 @@ public class SystemContainer
             node.DeltaTime = dt;
         }
 
-        m_TaskGraph.Execute();
+        try
+        {
+            m_Schedule.Execute();
+        }
+        catch
+        {
+            ClearCommandBuffers();
+            throw;
+        }
 
         // 3. Playback Phase (Sequential)
         // Now that the parallel simulation phase is complete, we apply all 
         // structural changes (Create/Destroy/Add/Remove) to the EntityManager.
-        foreach (var meta in m_Systems)
+        try
         {
-            var node = (SystemTaskNode)meta.TaskNode!;
-            node.CommandBuffer?.Playback(em);
+            for (int i = 0; i < m_Systems.Count; i++)
+            {
+                var node = (SystemTaskNode)m_Systems[i].TaskNode!;
+                node.CommandBuffer?.Playback(em);
+            }
+        }
+        catch
+        {
+            ClearCommandBuffers();
+            throw;
         }
     }
 
     private void RebuildGraph()
     {
-        m_TaskGraph?.Dispose();
-        m_TaskGraph = new TaskGraph();
+        m_Schedule?.Dispose();
+        m_Schedule = null;
 
-        // 1. Add all nodes to the graph
-        foreach (var meta in m_Systems)
+        if (m_Systems.Count == 0)
         {
-            m_TaskGraph.AddTask(meta.TaskNode!);
+            m_IsDirty = false;
+            return;
         }
 
-        // 2. Resolve dependencies
+        var tasks = new TaskNode[m_Systems.Count];
+        for (int i = 0; i < m_Systems.Count; i++)
+        {
+            tasks[i] = m_Systems[i].TaskNode!;
+        }
+
+        var dependencies = new List<TaskDependency>();
         for (int i = 0; i < m_Systems.Count; i++)
         {
             for (int j = 0; j < m_Systems.Count; j++)
@@ -143,11 +179,31 @@ public class SystemContainer
 
                 if (needsDependency)
                 {
-                    m_TaskGraph.AddDependency(sysA.TaskNode!, sysB.TaskNode!);
+                    dependencies.Add(new TaskDependency(sysA.TaskNode!, sysB.TaskNode!));
                 }
             }
         }
 
+        m_Schedule = m_TaskGraph.CreateSchedule(tasks, dependencies);
         m_IsDirty = false;
+    }
+
+    private void ClearCommandBuffers()
+    {
+        for (int i = 0; i < m_Systems.Count; i++)
+        {
+            var node = (SystemTaskNode)m_Systems[i].TaskNode!;
+            node.CommandBuffer?.Clear();
+        }
+    }
+
+    public void Dispose()
+    {
+        if (m_Disposed) return;
+
+        m_Disposed = true;
+        ClearCommandBuffers();
+        m_Schedule?.Dispose();
+        m_Schedule = null;
     }
 }

@@ -87,11 +87,17 @@ public class EntityCommandBuffer
     /// </summary>
     public void Playback(EntityManager em)
     {
-        foreach (var cmd in m_Commands)
+        try
         {
-            cmd.Execute(em);
+            for (int i = 0; i < m_Commands.Count; i++)
+            {
+                m_Commands[i].Execute(em);
+            }
         }
-        Clear();
+        finally
+        {
+            Clear();
+        }
     }
 
     public void Clear()

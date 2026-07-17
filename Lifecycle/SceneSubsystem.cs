@@ -1,6 +1,7 @@
 using ArisenKernel.Lifecycle;
 using ArisenEngine.Core.ECS;
 using ArisenEngine.Core.RHI;
+using ArisenEngine.Threading;
 using System;
 
 namespace ArisenEngine.ECS.Lifecycle;
@@ -53,21 +54,25 @@ public class SceneSubsystem : ITickableSubsystem
         m_StaticMeshItemCount = items.Length;
     }
 
-    private readonly SystemContainer m_Systems = new();
+    private SystemContainer? m_Systems;
 
     public void Initialize()
     {
+        var taskGraph = EngineKernel.Instance.Services.GetService<ITaskGraph>();
+        m_Systems = new SystemContainer(taskGraph);
         ActiveEntityManager = new EntityManager();
     }
 
     public void Tick(float deltaTime)
     {
-        m_Systems.Execute(ActiveEntityManager, deltaTime);
+        m_Systems?.Execute(ActiveEntityManager, deltaTime);
     }
 
     public void RegisterSystem(ISystem system)
     {
-        m_Systems.AddSystem(system);
+        var systems = m_Systems
+            ?? throw new InvalidOperationException("SceneSubsystem must be initialized before systems are registered.");
+        systems.AddSystem(system);
     }
 
     /// <summary>
@@ -82,6 +87,8 @@ public class SceneSubsystem : ITickableSubsystem
 
     public void Shutdown()
     {
+        m_Systems?.Dispose();
+        m_Systems = null;
         ActiveEntityManager = null!;
         m_DrawCommandCount = 0;
         m_StaticMeshItemCount = 0;
