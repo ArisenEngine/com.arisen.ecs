@@ -44,6 +44,7 @@ public sealed class MeshSystem : ISystem
                 if (!meshComp.IsValid) continue;
 
                 ref var transComp = ref transformPool.GetRef(entity);
+                if (!IsFinite(transComp)) continue;
                 ref var item = ref renderItems[itemCount];
 
                 // Arisen follows a Row-Major convention for CPU math (System.Numerics default)
@@ -67,4 +68,17 @@ public sealed class MeshSystem : ISystem
             scene.UpdateStaticMeshItems(renderItems.Slice(0, itemCount));
         }
     }
+
+    private static bool IsFinite(in TransformComponent transform) =>
+        IsFinite(transform.Position) &&
+        float.IsFinite(transform.Rotation.X) &&
+        float.IsFinite(transform.Rotation.Y) &&
+        float.IsFinite(transform.Rotation.Z) &&
+        float.IsFinite(transform.Rotation.W) &&
+        IsFinite(transform.Scale);
+
+    private static bool IsFinite(Vector3 value) =>
+        float.IsFinite(value.X) &&
+        float.IsFinite(value.Y) &&
+        float.IsFinite(value.Z);
 }

@@ -4,6 +4,7 @@ using ArisenEngine.Core.Memory;
 using ArisenEngine.Core.Automation;
 using System.Numerics;
 using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace ArisenEngine.Core.ECS;
@@ -15,10 +16,10 @@ public interface IComponentPool
 {
     bool Has(Entity entity);
     void Remove(Entity entity);
+    void RemoveEntities(ReadOnlySpan<Entity> entities);
     void Clear();
     Type GetComponentType();
     object GetBoxed(Entity entity);
-    void SetBoxed(Entity entity, object component);
     IntPtr GetAddress(Entity entity);
 }
 
@@ -36,11 +37,11 @@ public class ComponentPool<T> : IComponentPool where T : struct, IComponent
     public int Count => m_Count;
     public Type GetComponentType() => typeof(T);
     public object GetBoxed(Entity entity) => Get(entity);
-    public void SetBoxed(Entity entity, object component) => Add(entity, (T)component);
 
     public unsafe IntPtr GetAddress(Entity entity)
     {
-        fixed (T* ptr = &m_Components[m_Sparse[entity.Id]])
+        int denseIndex = GetDenseIndex(entity);
+        fixed (T* ptr = &m_Components[denseIndex])
         {
             return (IntPtr)ptr;
         }
@@ -58,11 +59,22 @@ public class ComponentPool<T> : IComponentPool where T : struct, IComponent
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Has(Entity entity)
     {
-        return entity.Id >= 0 && entity.Id < m_Sparse.Length && m_Sparse[entity.Id] != -1;
+        if (!entity.IsValid || entity.Id >= m_Sparse.Length)
+        {
+            return false;
+        }
+
+        int denseIndex = m_Sparse[entity.Id];
+        return denseIndex >= 0 && denseIndex < m_Count && m_Dense[denseIndex] == entity;
     }
 
-    public ref T Add(Entity entity, in T component = default)
+    internal ref T Add(Entity entity, in T component = default)
     {
+        if (!entity.IsValid)
+        {
+            throw new InvalidOperationException($"Cannot add {typeof(T).Name} to an invalid entity handle.");
+        }
+
         EnsureSparseCapacity(entity.Id);
 
         if (Has(entity))
@@ -70,6 +82,12 @@ public class ComponentPool<T> : IComponentPool where T : struct, IComponent
             // Already exists, just update it
             m_Components[m_Sparse[entity.Id]] = component;
             return ref m_Components[m_Sparse[entity.Id]];
+        }
+
+        if (m_Sparse[entity.Id] != -1)
+        {
+            throw new InvalidOperationException(
+                $"Cannot add {typeof(T).Name} to stale entity {entity}; slot {entity.Id} is owned by {m_Dense[m_Sparse[entity.Id]]}.");
         }
 
         if (m_Count >= m_Dense.Length)
@@ -89,10 +107,7 @@ public class ComponentPool<T> : IComponentPool where T : struct, IComponent
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ref T Get(Entity entity)
     {
-        if (!Has(entity))
-            throw new Exception($"Entity {entity.Id} does not have component {typeof(T).Name}");
-
-        return ref m_Components[m_Sparse[entity.Id]];
+        return ref m_Components[GetDenseIndex(entity)];
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -117,11 +132,53 @@ public class ComponentPool<T> : IComponentPool where T : struct, IComponent
 
         m_Sparse[entity.Id] = -1;
         m_Count--;
+        m_Dense[m_Count] = default;
+        m_Components[m_Count] = default;
+    }
+
+    public void RemoveEntities(ReadOnlySpan<Entity> entities)
+    {
+        if (entities.IsEmpty || m_Count == 0)
+        {
+            return;
+        }
+
+        var removed = new HashSet<Entity>(entities.Length);
+        for (int i = 0; i < entities.Length; i++)
+        {
+            removed.Add(entities[i]);
+        }
+
+        int writeIndex = 0;
+        int previousCount = m_Count;
+        for (int readIndex = 0; readIndex < previousCount; readIndex++)
+        {
+            Entity entity = m_Dense[readIndex];
+            if (removed.Contains(entity))
+            {
+                m_Sparse[entity.Id] = -1;
+                continue;
+            }
+
+            if (writeIndex != readIndex)
+            {
+                m_Dense[writeIndex] = entity;
+                m_Components[writeIndex] = m_Components[readIndex];
+            }
+            m_Sparse[entity.Id] = writeIndex;
+            writeIndex++;
+        }
+
+        Array.Clear(m_Dense, writeIndex, previousCount - writeIndex);
+        Array.Clear(m_Components, writeIndex, previousCount - writeIndex);
+        m_Count = writeIndex;
     }
 
     public void Clear()
     {
         Array.Fill(m_Sparse, -1);
+        Array.Clear(m_Dense, 0, m_Count);
+        Array.Clear(m_Components, 0, m_Count);
         m_Count = 0;
     }
 
@@ -137,6 +194,18 @@ public class ComponentPool<T> : IComponentPool where T : struct, IComponent
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Entity[] GetRawEntityArray() => m_Dense;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private int GetDenseIndex(Entity entity)
+    {
+        if (!Has(entity))
+        {
+            throw new InvalidOperationException(
+                $"Entity {entity} does not have component {typeof(T).Name}.");
+        }
+
+        return m_Sparse[entity.Id];
+    }
 
     private void EnsureSparseCapacity(int entityId)
     {

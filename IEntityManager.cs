@@ -10,6 +10,8 @@ namespace ArisenEngine.Core.ECS;
 /// </summary>
 public interface IEntityManager
 {
+    int EntityCount { get; }
+
     /// <summary>
     /// Creates a new Entity, optionally reusing a freed ID.
     /// </summary>
@@ -21,6 +23,11 @@ public interface IEntityManager
     Entity CreateEntity(int id);
 
     /// <summary>
+    /// Returns whether the complete slot/generation handle is currently alive.
+    /// </summary>
+    bool IsAlive(Entity entity);
+
+    /// <summary>
     /// Returns all currently active entities in the world.
     /// </summary>
     IEnumerable<Entity> GetAllEntities();
@@ -29,6 +36,10 @@ public interface IEntityManager
     /// Destroys the entity and removes all associated components across all pools.
     /// </summary>
     void DestroyEntity(Entity entity);
+
+    bool TryDestroyEntity(Entity entity);
+
+    void DestroyEntities(ReadOnlySpan<Entity> entities);
 
     /// <summary>
     /// Adds or updates a component onto the given entity.

@@ -7,7 +7,9 @@ using System.Runtime.InteropServices;
 namespace ArisenEngine.Core.ECS;
 
 /// <summary>
-/// A zero-allocation, purely blittable component to store entity position, rotation, and scale.
+/// A zero-allocation, purely blittable component to store origin-relative world position,
+/// rotation, and scale. World descriptors and streaming policy retain double coordinates;
+/// the resources-owned origin service shifts this compact active-world data at frame boundaries.
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct TransformComponent : IComponent
