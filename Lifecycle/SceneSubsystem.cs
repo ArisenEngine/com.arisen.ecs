@@ -75,16 +75,6 @@ public class SceneSubsystem : ITickableSubsystem
         systems.AddSystem(system);
     }
 
-    /// <summary>
-    /// Atomically replaces the active ECS world after a scene has been fully validated and loaded.
-    /// </summary>
-    public void ActivateEntityManager(EntityManager entityManager)
-    {
-        ActiveEntityManager = entityManager ?? throw new ArgumentNullException(nameof(entityManager));
-        m_DrawCommandCount = 0;
-        m_StaticMeshItemCount = 0;
-    }
-
     public void Shutdown()
     {
         m_Systems?.Dispose();
