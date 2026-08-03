@@ -20,7 +20,6 @@ public interface IComponentPool
     void Clear();
     Type GetComponentType();
     object GetBoxed(Entity entity);
-    IntPtr GetAddress(Entity entity);
 }
 
 /// <summary>
@@ -37,15 +36,6 @@ public class ComponentPool<T> : IComponentPool where T : struct, IComponent
     public int Count => m_Count;
     public Type GetComponentType() => typeof(T);
     public object GetBoxed(Entity entity) => Get(entity);
-
-    public unsafe IntPtr GetAddress(Entity entity)
-    {
-        int denseIndex = GetDenseIndex(entity);
-        fixed (T* ptr = &m_Components[denseIndex])
-        {
-            return (IntPtr)ptr;
-        }
-    }
 
     public ComponentPool(int capacity = 128)
     {
