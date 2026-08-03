@@ -2,6 +2,9 @@
   "id": "com.arisen.ecs",
   "name": "Arisen Entity Component System",
   "version": "1.0.0",
+  "engine": {
+    "minVersion": "0.1.0"
+  },
   "layer": "domain",
   "author": "Arisen Team",
   "description": "Core ECS framework for Arisen Engine",
