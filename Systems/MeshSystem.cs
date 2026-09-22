@@ -29,7 +29,9 @@ public sealed class MeshSystem : ISystem
             return;
         }
 
-        var renderItems = FrameArena.Instance.Alloc<StaticMeshRenderItem>(count);
+        // Frame-scoped: SceneSubsystem publishes these items for this frame's render extraction,
+        // and MemoryManager reclaims the arena at the frame boundary.
+        var renderItems = MemoryManager.FrameArena.Alloc<StaticMeshRenderItem>(count);
         
         var meshComponents = meshPool.GetRawComponentArray();
         var meshEntities = meshPool.GetRawEntityArray();
