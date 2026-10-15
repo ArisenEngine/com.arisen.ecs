@@ -12,7 +12,12 @@ namespace ArisenEngine.Core.ECS;
 [StructLayout(LayoutKind.Sequential)]
 public unsafe struct SkeletonPoseComponent : IComponent
 {
-    public const int MaxJoints = 32;
+    // The pose is a fixed buffer inside the component, so this bound is what one pool slot may carry.
+    // Thirty-two was the hand-authored figure's skeleton; an imported character's reach further once
+    // hands, feet, and its IK controls join the skin (the gallery's character rig cooks 41 joints, a
+    // Mixamo-style rig around 65), so the bound leaves room for a real rig while the cooker's own
+    // 255-joint bound stays the outer limit.
+    public const int MaxJoints = 128;
 
     public int JointCount;
     private fixed float m_LocalRotations[MaxJoints * 4];
