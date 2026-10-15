@@ -3,6 +3,7 @@ using ArisenEngine.Core.ECS;
 using ArisenEngine.Core.RHI;
 using ArisenEngine.Threading;
 using System;
+using System.Numerics;
 
 namespace ArisenEngine.ECS.Lifecycle;
 
@@ -21,6 +22,8 @@ public class SceneSubsystem : ITickableSubsystem
     private int m_DrawCommandCount = 0;
     private StaticMeshRenderItem[] m_StaticMeshItems = new StaticMeshRenderItem[64];
     private int m_StaticMeshItemCount = 0;
+    private Quaternion[] m_SkinJointRotations = new Quaternion[64];
+    private int m_SkinJointRotationCount = 0;
 
     /// <summary>
     /// Gets the list of mesh draw commands processed during the current frame.
@@ -28,6 +31,8 @@ public class SceneSubsystem : ITickableSubsystem
     public ReadOnlySpan<MeshDrawCommand> GetCurrentDrawList() => new(m_DrawListBuffer, 0, m_DrawCommandCount);
 
     public ReadOnlySpan<StaticMeshRenderItem> GetCurrentStaticMeshItems() => new(m_StaticMeshItems, 0, m_StaticMeshItemCount);
+
+    public ReadOnlySpan<Quaternion> GetCurrentSkinJointRotations() => new(m_SkinJointRotations, 0, m_SkinJointRotationCount);
 
     /// <summary>
     /// Updates the internal draw list. Called by MeshSystem.
@@ -43,15 +48,24 @@ public class SceneSubsystem : ITickableSubsystem
         m_DrawCommandCount = drawList.Length;
     }
 
-    public void UpdateStaticMeshItems(ReadOnlySpan<StaticMeshRenderItem> items)
+    public void UpdateStaticMeshItems(
+        ReadOnlySpan<StaticMeshRenderItem> items,
+        ReadOnlySpan<Quaternion> skinJointRotations)
     {
         if (items.Length > m_StaticMeshItems.Length)
         {
             m_StaticMeshItems = new StaticMeshRenderItem[items.Length * 2];
         }
 
+        if (skinJointRotations.Length > m_SkinJointRotations.Length)
+        {
+            m_SkinJointRotations = new Quaternion[skinJointRotations.Length * 2];
+        }
+
         items.CopyTo(m_StaticMeshItems);
         m_StaticMeshItemCount = items.Length;
+        skinJointRotations.CopyTo(m_SkinJointRotations);
+        m_SkinJointRotationCount = skinJointRotations.Length;
     }
 
     private SystemContainer? m_Systems;

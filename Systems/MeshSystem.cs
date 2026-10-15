@@ -20,23 +20,30 @@ public sealed class MeshSystem : ISystem
     {
         var meshPool = em.GetPool<MeshRendererComponent>();
         var transformPool = em.GetPool<TransformComponent>();
+        var posePool = em.GetPool<SkeletonPoseComponent>();
         var scene = EngineKernel.Instance.GetSubsystem<SceneSubsystem>();
-        
+
         int count = meshPool.Count;
         if (count == 0)
         {
-            scene?.UpdateStaticMeshItems(ReadOnlySpan<StaticMeshRenderItem>.Empty);
+            scene?.UpdateStaticMeshItems(
+                ReadOnlySpan<StaticMeshRenderItem>.Empty,
+                ReadOnlySpan<Quaternion>.Empty);
             return;
         }
 
         // Frame-scoped: SceneSubsystem publishes these items for this frame's render extraction,
         // and MemoryManager reclaims the arena at the frame boundary.
         var renderItems = MemoryManager.FrameArena.Alloc<StaticMeshRenderItem>(count);
-        
+        Span<Quaternion> skinJointRotations = posePool.Count > 0
+            ? MemoryManager.FrameArena.Alloc<Quaternion>(posePool.Count * SkeletonPoseComponent.MaxJoints)
+            : Span<Quaternion>.Empty;
+
         var meshComponents = meshPool.GetRawComponentArray();
         var meshEntities = meshPool.GetRawEntityArray();
 
         int itemCount = 0;
+        int skinJointRotationCount = 0;
         for (int i = 0; i < count; i++)
         {
             Entity entity = meshEntities[i];
@@ -60,6 +67,22 @@ public sealed class MeshSystem : ISystem
                 item.BoundsCenter = meshComp.BoundsCenter;
                 item.BoundsExtents = meshComp.BoundsExtents;
                 item.Visible = meshComp.Visible;
+                item.SkinJointOffset = 0;
+                item.SkinJointCount = 0;
+
+                if (posePool.Has(entity))
+                {
+                    ref var pose = ref posePool.GetRef(entity);
+                    if (pose.IsValid)
+                    {
+                        item.SkinJointOffset = skinJointRotationCount;
+                        item.SkinJointCount = pose.JointCount;
+                        for (int jointIndex = 0; jointIndex < pose.JointCount; jointIndex++)
+                        {
+                            skinJointRotations[skinJointRotationCount++] = pose.GetLocalRotation(jointIndex);
+                        }
+                    }
+                }
 
                 itemCount++;
             }
@@ -67,7 +90,9 @@ public sealed class MeshSystem : ISystem
 
         if (scene != null)
         {
-            scene.UpdateStaticMeshItems(renderItems.Slice(0, itemCount));
+            scene.UpdateStaticMeshItems(
+                renderItems.Slice(0, itemCount),
+                skinJointRotations.Slice(0, skinJointRotationCount));
         }
     }
 
