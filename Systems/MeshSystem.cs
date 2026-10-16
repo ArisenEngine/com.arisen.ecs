@@ -28,7 +28,8 @@ public sealed class MeshSystem : ISystem
         {
             scene?.UpdateStaticMeshItems(
                 ReadOnlySpan<StaticMeshRenderItem>.Empty,
-                ReadOnlySpan<Quaternion>.Empty);
+                ReadOnlySpan<Quaternion>.Empty,
+                ReadOnlySpan<Vector3>.Empty);
             return;
         }
 
@@ -38,12 +39,16 @@ public sealed class MeshSystem : ISystem
         Span<Quaternion> skinJointRotations = posePool.Count > 0
             ? MemoryManager.FrameArena.Alloc<Quaternion>(posePool.Count * SkeletonPoseComponent.MaxJoints)
             : Span<Quaternion>.Empty;
+        Span<Vector3> skinJointTranslations = posePool.Count > 0
+            ? MemoryManager.FrameArena.Alloc<Vector3>(posePool.Count * SkeletonPoseComponent.MaxJoints)
+            : Span<Vector3>.Empty;
 
         var meshComponents = meshPool.GetRawComponentArray();
         var meshEntities = meshPool.GetRawEntityArray();
 
         int itemCount = 0;
         int skinJointRotationCount = 0;
+        int skinJointTranslationCount = 0;
         for (int i = 0; i < count; i++)
         {
             Entity entity = meshEntities[i];
@@ -69,6 +74,8 @@ public sealed class MeshSystem : ISystem
                 item.Visible = meshComp.Visible;
                 item.SkinJointOffset = 0;
                 item.SkinJointCount = 0;
+                item.SkinTranslationOffset = 0;
+                item.SkinTranslationCount = 0;
 
                 if (posePool.Has(entity))
                 {
@@ -77,9 +84,12 @@ public sealed class MeshSystem : ISystem
                     {
                         item.SkinJointOffset = skinJointRotationCount;
                         item.SkinJointCount = pose.JointCount;
+                        item.SkinTranslationOffset = skinJointTranslationCount;
+                        item.SkinTranslationCount = pose.JointCount;
                         for (int jointIndex = 0; jointIndex < pose.JointCount; jointIndex++)
                         {
                             skinJointRotations[skinJointRotationCount++] = pose.GetLocalRotation(jointIndex);
+                            skinJointTranslations[skinJointTranslationCount++] = pose.GetLocalTranslation(jointIndex);
                         }
                     }
                 }
@@ -92,7 +102,8 @@ public sealed class MeshSystem : ISystem
         {
             scene.UpdateStaticMeshItems(
                 renderItems.Slice(0, itemCount),
-                skinJointRotations.Slice(0, skinJointRotationCount));
+                skinJointRotations.Slice(0, skinJointRotationCount),
+                skinJointTranslations.Slice(0, skinJointTranslationCount));
         }
     }
 

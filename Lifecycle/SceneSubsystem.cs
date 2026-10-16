@@ -24,6 +24,8 @@ public class SceneSubsystem : ITickableSubsystem
     private int m_StaticMeshItemCount = 0;
     private Quaternion[] m_SkinJointRotations = new Quaternion[64];
     private int m_SkinJointRotationCount = 0;
+    private Vector3[] m_SkinJointTranslations = new Vector3[64];
+    private int m_SkinJointTranslationCount = 0;
 
     /// <summary>
     /// Gets the list of mesh draw commands processed during the current frame.
@@ -33,6 +35,8 @@ public class SceneSubsystem : ITickableSubsystem
     public ReadOnlySpan<StaticMeshRenderItem> GetCurrentStaticMeshItems() => new(m_StaticMeshItems, 0, m_StaticMeshItemCount);
 
     public ReadOnlySpan<Quaternion> GetCurrentSkinJointRotations() => new(m_SkinJointRotations, 0, m_SkinJointRotationCount);
+
+    public ReadOnlySpan<Vector3> GetCurrentSkinJointTranslations() => new(m_SkinJointTranslations, 0, m_SkinJointTranslationCount);
 
     /// <summary>
     /// Updates the internal draw list. Called by MeshSystem.
@@ -50,7 +54,8 @@ public class SceneSubsystem : ITickableSubsystem
 
     public void UpdateStaticMeshItems(
         ReadOnlySpan<StaticMeshRenderItem> items,
-        ReadOnlySpan<Quaternion> skinJointRotations)
+        ReadOnlySpan<Quaternion> skinJointRotations,
+        ReadOnlySpan<Vector3> skinJointTranslations)
     {
         if (items.Length > m_StaticMeshItems.Length)
         {
@@ -62,10 +67,17 @@ public class SceneSubsystem : ITickableSubsystem
             m_SkinJointRotations = new Quaternion[skinJointRotations.Length * 2];
         }
 
+        if (skinJointTranslations.Length > m_SkinJointTranslations.Length)
+        {
+            m_SkinJointTranslations = new Vector3[skinJointTranslations.Length * 2];
+        }
+
         items.CopyTo(m_StaticMeshItems);
         m_StaticMeshItemCount = items.Length;
         skinJointRotations.CopyTo(m_SkinJointRotations);
         m_SkinJointRotationCount = skinJointRotations.Length;
+        skinJointTranslations.CopyTo(m_SkinJointTranslations);
+        m_SkinJointTranslationCount = skinJointTranslations.Length;
     }
 
     private SystemContainer? m_Systems;

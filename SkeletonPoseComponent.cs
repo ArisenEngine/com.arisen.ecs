@@ -4,10 +4,11 @@ using System.Runtime.InteropServices;
 namespace ArisenEngine.Core.ECS;
 
 /// <summary>
-/// Local joint rotations that override the cooked rest pose of a skinned mesh. The animation
-/// runtime writes here and the frame snapshot copies the component into the frame's pose array, so
-/// render preparation can build a skin palette without reaching back into the ECS. Translations and
-/// scales stay on the cooked rest pose until the clip runtime needs to drive them.
+/// Local joint rotations and translations that override the cooked rest pose of a skinned mesh. The
+/// animation runtime writes here - a writer supplies a complete pose, so both channels are set
+/// together - and the frame snapshot copies the component into the frame's pose arrays, so render
+/// preparation can build a skin palette without reaching back into the ECS. Scales stay on the
+/// cooked rest pose: the cooked skeleton stores unit-scale joints.
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public unsafe struct SkeletonPoseComponent : IComponent
@@ -21,6 +22,7 @@ public unsafe struct SkeletonPoseComponent : IComponent
 
     public int JointCount;
     private fixed float m_LocalRotations[MaxJoints * 4];
+    private fixed float m_LocalTranslations[MaxJoints * 3];
 
     public bool IsValid => JointCount is > 0 and <= MaxJoints;
 
@@ -77,5 +79,39 @@ public unsafe struct SkeletonPoseComponent : IComponent
         m_LocalRotations[jointIndex * 4 + 1] = normalized.Y;
         m_LocalRotations[jointIndex * 4 + 2] = normalized.Z;
         m_LocalRotations[jointIndex * 4 + 3] = normalized.W;
+    }
+
+    public Vector3 GetLocalTranslation(int jointIndex)
+    {
+        if ((uint)jointIndex >= (uint)JointCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(jointIndex));
+        }
+
+        return new Vector3(
+            m_LocalTranslations[jointIndex * 3],
+            m_LocalTranslations[jointIndex * 3 + 1],
+            m_LocalTranslations[jointIndex * 3 + 2]);
+    }
+
+    public void SetLocalTranslation(int jointIndex, Vector3 translation)
+    {
+        if ((uint)jointIndex >= (uint)JointCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(jointIndex));
+        }
+
+        if (!float.IsFinite(translation.X) ||
+            !float.IsFinite(translation.Y) ||
+            !float.IsFinite(translation.Z))
+        {
+            throw new ArgumentException(
+                $"[SkeletonPoseComponent] Joint {jointIndex} translation must be finite.",
+                nameof(translation));
+        }
+
+        m_LocalTranslations[jointIndex * 3] = translation.X;
+        m_LocalTranslations[jointIndex * 3 + 1] = translation.Y;
+        m_LocalTranslations[jointIndex * 3 + 2] = translation.Z;
     }
 }
